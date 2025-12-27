@@ -1,0 +1,482 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>XLSX / XLS / CSV → KML + Map Preview — Telkom Akses</title>
+
+  <!-- SheetJS untuk baca XLSX/XLS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- MapLibre GL JS -->
+  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+
+  <style>
+    :root {
+      --ta-red: #d00000;
+      --ta-ink: #0f172a;
+      --ta-muted: #6b7280;
+      --ta-bg: #f3f4f6;
+      --ta-card: #ffffff;
+      --ta-line: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--ta-bg);
+      padding: 22px;
+      color: var(--ta-ink);
+    }
+    .app {
+      max-width: 980px;
+      margin: 0 auto;
+      background: var(--ta-card);
+      padding: 22px 26px 26px;
+      border-radius: 16px;
+      border: 1px solid var(--ta-line);
+      box-shadow: 0 16px 40px rgba(15,23,42,0.16);
+    }
+    .title-wrap {
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--ta-line);
+      padding-bottom: 10px;
+    }
+    h1 {
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--ta-red);
+    }
+    .subtitle {
+      margin-top: 4px;
+      color: var(--ta-muted);
+      font-size: 13px;
+    }
+    .section {
+      margin-top: 18px;
+      background: #fff;
+      padding: 14px 14px 16px;
+      border-radius: 12px;
+      border: 1px dashed var(--ta-line);
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ta-muted);
+      margin-bottom: 10px;
+    }
+    input[type="file"] {
+      padding: 6px;
+      font-size: 13px;
+      max-width: 260px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      color: #fff;
+      background: var(--ta-red);
+      transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.08s ease;
+    }
+    button:hover {
+      background: #a00000;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(220,0,0,0.35);
+    }
+    button.secondary {
+      background: #4b5563;
+    }
+    #status {
+      margin-top: 6px;
+      color: var(--ta-muted);
+      font-size: 12px;
+    }
+    table {
+      width: 100%;
+      margin-top: 6px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid var(--ta-line);
+      padding: 6px 8px;
+      text-align: left;
+      background: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    th {
+      background: #fee2e2;
+      color: #111827;
+      font-weight: 700;
+    }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--ta-line);
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: #f9fafb;
+      color: #111827;
+      resize: vertical;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #fecaca;
+      box-shadow: 0 0 0 1px #fecaca;
+    }
+    #map {
+      width: 100%;
+      height: 420px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      margin-top: 4px;
+    }
+    #map .maplibre-control-container {
+      font-size: 11px;
+    }
+    @media (max-width: 640px) {
+      .app {
+        padding: 16px 14px 18px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <div class="title-wrap">
+    <h1>XLSX / XLS / CSV → KML Converter + Map Preview</h1>
+    <div class="subtitle">
+      Konversi data titik (Name, Latitude, Longitude, Deskripsi) menjadi KML dengan preview peta OSM (MapLibre) — Telkom Akses.
+    </div>
+  </div>
+
+  <!-- 1. Upload / Template -->
+  <div class="section">
+    <div class="section-title">1 · Upload File atau Gunakan Template</div>
+
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+    <br />
+
+    <button onclick="processFile()">Konversi ke KML</button>
+    <button class="secondary" style="margin-left:6px;" onclick="downloadTemplate()">Download Template CSV</button>
+
+    <p id="status">Format minimal: <b>Name, Latitude, Longitude, Deskripsi</b></p>
+  </div>
+
+  <!-- 2. Preview Data -->
+  <div class="section">
+    <div class="section-title">2 · Preview Data (maksimal 20 baris pertama)</div>
+    <table id="previewTable">
+      <thead></thead>
+      <tbody>
+        <tr><td style="font-size:12px;color:var(--ta-muted);font-style:italic;">Belum ada data.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3. Output KML -->
+  <div class="section">
+    <div class="section-title">3 · Output KML</div>
+    <textarea id="kmlOutput" placeholder="Output KML akan muncul di sini setelah konversi..."></textarea>
+    <button onclick="downloadKML()">Download KML</button>
+  </div>
+
+  <!-- 4. Map Preview -->
+  <div class="section" style="margin-top:18px;">
+    <div class="section-title">4 · Map Preview (OSM — MapLibre)</div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<script>
+  const statusEl = document.getElementById("status");
+  const previewHead = document.querySelector("#previewTable thead");
+  const previewBody = document.querySelector("#previewTable tbody");
+  const kmlOutput = document.getElementById("kmlOutput");
+
+  // MapLibre globals
+  let map;
+  let markers = [];
+
+  function setStatus(msg, isError = false) {
+    statusEl.textContent = msg;
+    statusEl.style.color = isError ? "#b91c1c" : "var(--ta-muted)";
+  }
+
+  function CSVToArray(csv) {
+    const lines = csv.split(/\r?\n/);
+    const rows = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const cols = line.split(",");
+      if (cols.length === 1 && !cols[0]) continue;
+      rows.push(cols);
+    }
+    return rows;
+  }
+
+  function renderPreview(rows) {
+    previewHead.innerHTML = "";
+    previewBody.innerHTML = "";
+
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.textContent = "Belum ada data.";
+      td.style.fontSize = "12px";
+      td.style.color = "var(--ta-muted)";
+      td.style.fontStyle = "italic";
+      tr.appendChild(td);
+      previewBody.appendChild(tr);
+      return;
+    }
+
+    const header = rows[0];
+    let headHtml = "<tr>";
+    header.forEach(h => {
+      headHtml += `<th>${h ?? ""}</th>`;
+    });
+    headHtml += "</tr>";
+    previewHead.innerHTML = headHtml;
+
+    const maxRows = 20;
+    rows.slice(1, maxRows + 1).forEach(r => {
+      let rowHtml = "<tr>";
+      r.forEach(c => {
+        rowHtml += `<td>${c ?? ""}</td>`;
+      });
+      rowHtml += "</tr>";
+      previewBody.innerHTML += rowHtml;
+    });
+
+    if (rows.length - 1 > maxRows) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = header.length || 1;
+      td.textContent = `… dan ${rows.length - 1 - maxRows} baris lainnya`;
+      td.style.fontSize = "12px";
+      td.style.color = "var(--ta-muted)";
+      td.style.fontStyle = "italic";
+      tr.appendChild(td);
+      previewBody.appendChild(tr);
+    }
+  }
+
+  function buildKmlAndPoints(rows) {
+    if (!rows.length) {
+      throw new Error("File kosong atau tidak terbaca.");
+    }
+
+    // Normalisasi header
+    const headerRaw = rows[0];
+    const headerLower = headerRaw.map(h => String(h || "").toLowerCase().trim());
+
+    const latIdx = headerLower.findIndex(h => h.includes("lat"));
+    const lonIdx = headerLower.findIndex(h => h.includes("lon"));
+    const nameIdx = headerLower.findIndex(h => h.includes("name") || h.includes("nama"));
+    const descIdx = headerLower.findIndex(h => h.includes("desk") || h.includes("desc"));
+
+    if (latIdx === -1 || lonIdx === -1 || nameIdx === -1) {
+      throw new Error("Header wajib mengandung kolom Name, Latitude, dan Longitude.");
+    }
+
+    let kmlParts = [];
+    let points = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length === 0) continue;
+
+      const name = r[nameIdx] || `Placemark-${i}`;
+      const rawLat = r[latIdx];
+      const rawLon = r[lonIdx];
+      const desc = descIdx !== -1 ? (r[descIdx] || "") : "";
+
+      if (rawLat === undefined || rawLon === undefined || rawLat === "" || rawLon === "") continue;
+
+      const lat = parseFloat(String(rawLat).replace(",", "."));
+      const lon = parseFloat(String(rawLon).replace(",", "."));
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+      // Simpan untuk map
+      points.push({ name: String(name), lat, lon, desc: String(desc) });
+
+      // Placemark
+      kmlParts.push(
+`  <Placemark>
+    <name>${escapeXml(String(name))}</name>
+    <description>${escapeXml(String(desc))}</description>
+    <Point>
+      <coordinates>${lon},${lat},0</coordinates>
+    </Point>
+  </Placemark>
+`
+      );
+    }
+
+    const kmlDoc =
+`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+${kmlParts.join("")}</Document>
+</kml>`;
+
+    return { kml: kmlDoc, points, count: points.length };
+  }
+
+  function escapeXml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function processFile() {
+    const fileEl = document.getElementById("fileInput");
+    const file = fileEl.files[0];
+    if (!file) {
+      setStatus("Silakan pilih file CSV/XLSX/XLS terlebih dahulu.", true);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const data = e.target.result;
+        let rows = [];
+
+        if (file.name.toLowerCase().endsWith(".csv")) {
+          rows = CSVToArray(data);
+        } else {
+          const wb = XLSX.read(data, { type: "binary" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        }
+
+        if (!rows.length) {
+          throw new Error("File kosong atau tidak berisi data.");
+        }
+
+        renderPreview(rows);
+
+        const { kml, points, count } = buildKmlAndPoints(rows);
+        kmlOutput.value = kml;
+        setStatus(`Berhasil: ${count} titik valid dikonversi dari ${file.name}.`);
+
+        updateMap(points);
+      } catch (err) {
+        console.error(err);
+        setStatus("Error: " + err.message, true);
+        kmlOutput.value = "";
+        renderPreview([]);
+        updateMap([]); // clear map
+      }
+    };
+
+    if (file.name.toLowerCase().endsWith(".csv")) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  }
+
+  function downloadKML() {
+    const content = kmlOutput.value;
+    if (!content.trim()) {
+      alert("Tidak ada KML untuk di-download.");
+      return;
+    }
+    const blob = new Blob([content], { type: "application/vnd.google-earth.kml+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export_telkom_akses.kml";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadTemplate() {
+    const template =
+`Name,Latitude,Longitude,Deskripsi
+ODP-01,-7.32712,108.22011,ODP Baru Kap 8
+Tiang-PT2-05,-7.32755,108.22122,Tiang PT2 Existing
+ODC-A,-7.32001,108.21388,ODC Existing`;
+
+    const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "template_simple_telkom_akses.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // MAPLIBRE
+
+  function initMap() {
+    if (map) return;
+
+    map = new maplibregl.Map({
+      container: "map",
+      style: "https://demotiles.maplibre.org/style.json",
+      center: [108.2, -7.3], // default Jawa Barat
+      zoom: 11
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+  }
+
+  function updateMap(points) {
+    initMap();
+
+    // Hapus marker lama
+    markers.forEach(m => m.remove());
+    markers = [];
+
+    if (!points || !points.length) {
+      // jika perlu, reset ke default
+      map.setCenter([108.2, -7.3]);
+      map.setZoom(11);
+      return;
+    }
+
+    const bounds = new maplibregl.LngLatBounds();
+
+    points.forEach(p => {
+      const marker = new maplibregl.Marker({ color: "#d00000" })
+        .setLngLat([p.lon, p.lat])
+        .setPopup(
+          new maplibregl.Popup().setHTML(
+            `<b>${p.name}</b><br/><small>${p.desc || ""}</small>`
+          )
+        )
+        .addTo(map);
+
+      markers.push(marker);
+      bounds.extend([p.lon, p.lat]);
+    });
+
+    map.fitBounds(bounds, { padding: 40, maxZoom: 17 });
+  }
+</script>
+
+</body>
+</html>

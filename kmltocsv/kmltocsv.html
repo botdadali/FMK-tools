@@ -1,0 +1,548 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>KML to CSV — Tools Telkom Akses</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --ta-red:#d00000;
+      --ta-red-soft:#f16060;
+      --ta-ink:#0f172a;
+      --ta-muted:#6b7280;
+      --ta-bg:#f3f4f6;
+      --ta-card:#ffffff;
+      --ta-line:#e5e7eb;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #ffe5e5, #f9fafb 45%, #eef2ff 100%);
+      color: var(--ta-ink);
+      min-height: 100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:24px;
+    }
+    .app {
+      width:100%;
+      max-width:980px;
+      background:var(--ta-card);
+      border-radius:18px;
+      box-shadow:0 18px 45px rgba(15,23,42,0.15);
+      padding:20px 22px 24px;
+      border:1px solid rgba(148,163,184,0.3);
+    }
+    header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+      border-bottom:1px solid var(--ta-line);
+      padding-bottom:10px;
+    }
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo-pill {
+      width:34px;
+      height:34px;
+      border-radius:999px;
+      background:linear-gradient(135deg,var(--ta-red),#ff6b6b);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-weight:700;
+      font-size:18px;
+      box-shadow:0 10px 25px rgba(220,0,0,0.5);
+    }
+    .brand-text h1 {
+      font-size:17px;
+      font-weight:700;
+      letter-spacing:0.02em;
+    }
+    .brand-text p {
+      font-size:12px;
+      color:var(--ta-muted);
+    }
+    .tagline {
+      text-align:right;
+      font-size:11px;
+      color:var(--ta-muted);
+    }
+    .tagline span {
+      display:inline-block;
+      background:#fee2e2;
+      color:var(--ta-red);
+      padding:2px 8px;
+      border-radius:999px;
+      font-weight:600;
+      margin-bottom:4px;
+    }
+
+    .section {
+      margin-top:14px;
+      margin-bottom:14px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px dashed var(--ta-line);
+      background:linear-gradient(135deg,#f9fafb,#ffffff);
+    }
+    .section-title {
+      font-size:13px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--ta-muted);
+      margin-bottom:8px;
+    }
+    .field-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+    }
+    label {
+      font-size:13px;
+      font-weight:600;
+      color:var(--ta-ink);
+    }
+    input[type="file"] {
+      font-size:13px;
+      max-width:280px;
+    }
+    button {
+      border:none;
+      outline:none;
+      cursor:pointer;
+      border-radius:999px;
+      padding:7px 16px;
+      font-size:13px;
+      font-weight:600;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transition:transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+    }
+    .btn-primary {
+      background:linear-gradient(135deg,var(--ta-red),#ff4b4b);
+      color:#fff;
+      box-shadow:0 10px 25px rgba(220,0,0,0.4);
+    }
+    .btn-primary:hover {
+      transform:translateY(-1px);
+      box-shadow:0 14px 30px rgba(220,0,0,0.45);
+    }
+    .btn-ghost {
+      background:transparent;
+      color:var(--ta-muted);
+      padding-inline:10px;
+    }
+    .btn-ghost:hover {
+      background:#f3f4f6;
+    }
+    .summary {
+      font-size:12px;
+      color:var(--ta-muted);
+      margin-top:6px;
+    }
+    .summary strong {
+      color:var(--ta-red);
+    }
+
+    .output-grid {
+      display:grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap:10px;
+      margin-top:6px;
+    }
+    @media (max-width:900px) {
+      .output-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    textarea {
+      width:100%;
+      min-height:200px;
+      resize:vertical;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12px;
+      padding:10px;
+      border-radius:10px;
+      border:1px solid var(--ta-line);
+      background:#f9fafb;
+      color:#111827;
+    }
+    textarea:focus {
+      outline:none;
+      border-color:var(--ta-red-soft);
+      box-shadow:0 0 0 1px #fecaca;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      background:#f9fafb;
+      border-radius:10px;
+      overflow:hidden;
+    }
+    thead {
+      background:linear-gradient(90deg,#fee2e2,#e5e7eb);
+    }
+    th, td {
+      padding:6px 8px;
+      border-bottom:1px solid #e5e7eb;
+      text-align:left;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    th {
+      font-weight:600;
+      color:#111827;
+    }
+    tbody tr:nth-child(even) {
+      background:#f3f4f6;
+    }
+
+    .footer {
+      margin-top:10px;
+      font-size:11px;
+      color:var(--ta-muted);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      padding:3px 8px;
+      border-radius:999px;
+      background:#eff6ff;
+      color:#1d4ed8;
+      font-size:11px;
+      font-weight:500;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo-pill">TA</div>
+        <div class="brand-text">
+          <h1>KML to CSV Converter</h1>
+          <p>Tools internal Telkom Akses — client-side only</p>
+        </div>
+      </div>
+      <div class="tagline">
+        <span>Fiber Optic Project</span><br/>
+        Ekstrak koordinat Placemark / Line / Path dari file KML
+      </div>
+    </header>
+
+    <!-- Input KML -->
+    <section class="section">
+      <div class="section-title">1 · Input KML</div>
+      <div class="field-row">
+        <div>
+          <label for="kmlFile">File KML:</label><br>
+          <input id="kmlFile" type="file" accept=".kml,application/vnd.google-earth.kml+xml">
+        </div>
+        <div>
+          <button id="btnConvert" class="btn-primary">
+            ⬇ Konversi ke CSV
+          </button>
+        </div>
+        <div>
+          <button id="btnDownload" class="btn-ghost" disabled>
+            ⬇ Download CSV
+          </button>
+        </div>
+      </div>
+      <div id="info" class="summary">
+        Belum ada file diproses. Pilih file <strong>.kml</strong> lalu klik "Konversi ke CSV".
+      </div>
+    </section>
+
+    <!-- Output -->
+    <section class="section">
+      <div class="section-title">2 · Output CSV & Preview</div>
+      <div class="output-grid">
+        <div>
+          <label for="csvOutput" style="font-size:12px;font-weight:600;color:var(--ta-muted);">
+            CSV (No, Placemark Name, Latitude, Longitude, TYPE, Deskripsi):
+          </label>
+          <textarea id="csvOutput" placeholder="Hasil CSV akan muncul di sini..." spellcheck="false"></textarea>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--ta-muted);margin-bottom:4px;">
+            Preview (maks. 20 baris pertama):
+          </div>
+          <div style="max-height:260px;overflow:auto;border-radius:10px;border:1px solid var(--ta-line);background:#f9fafb;">
+            <table id="previewTable">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Placemark Name</th>
+                  <th>Latitude</th>
+                  <th>Longitude</th>
+                  <th>TYPE</th>
+                  <th>Deskripsi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="6" style="text-align:center;color:var(--ta-muted);font-style:italic;">
+                  Belum ada data.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <div>
+        <span class="pill">Schema: No · Name · Lat · Lon · TYPE · Deskripsi</span>
+      </div>
+      <div>TYPE: <strong>Placemark</strong> (Point) · <strong>Line</strong> (LineString) · <strong>Path</strong> (Polygon)</div>
+    </div>
+  </div>
+
+  <script>
+    const kmlInput     = document.getElementById('kmlFile');
+    const btnConvert   = document.getElementById('btnConvert');
+    const btnDownload  = document.getElementById('btnDownload');
+    const csvOutput    = document.getElementById('csvOutput');
+    const infoEl       = document.getElementById('info');
+    const previewTable = document.getElementById('previewTable').querySelector('tbody');
+
+    let currentCsvContent = '';
+    let currentCsvFilename = 'kml_export.csv';
+
+    function setInfo(text, isError = false) {
+      infoEl.textContent = text;
+      infoEl.style.color = isError ? '#b91c1c' : 'var(--ta-muted)';
+    }
+
+    function parseCoordinatesString(coordStr) {
+      if (!coordStr) return [];
+      const tokens = coordStr.trim().split(/\s+/);
+      const results = [];
+      for (const tok of tokens) {
+        if (!tok.includes(',')) continue;
+        const parts = tok.split(',');
+        const lon = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          results.push({ lat, lon });
+        }
+      }
+      return results;
+    }
+
+    function geometryTypeToLabel(geomElement) {
+      if (!geomElement) return '';
+      const tag = geomElement.tagName;
+      if (tag === 'Point') return 'Placemark';
+      if (tag === 'LineString') return 'Line';
+      if (tag === 'Polygon') return 'Path';
+      return tag || '';
+    }
+
+    function buildCsv(rows) {
+      const header = ['No','Placemark Name','Latitude','Longitude','TYPE','Deskripsi'];
+      const lines = [];
+      lines.push(header.join(','));
+
+      function escapeCell(value) {
+        if (value === null || value === undefined) return '';
+        let str = String(value);
+        if (/[",\n]/.test(str)) {
+          str = '"' + str.replace(/"/g,'""') + '"';
+        }
+        return str;
+      }
+
+      rows.forEach((row, idx) => {
+        const cells = [
+          idx + 1,
+          row.name || '',
+          row.lat != null ? row.lat : '',
+          row.lon != null ? row.lon : '',
+          row.type || '',
+          row.desc || ''
+        ];
+        lines.push(cells.map(escapeCell).join(','));
+      });
+
+      return lines.join('\n');
+    }
+
+    function updatePreview(rows) {
+      previewTable.innerHTML = '';
+      if (!rows.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.textContent = 'Tidak ada data geometry (Point / LineString / Polygon) ditemukan.';
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--ta-muted)';
+        td.style.fontStyle = 'italic';
+        tr.appendChild(td);
+        previewTable.appendChild(tr);
+        return;
+      }
+
+      const maxRows = 20;
+      rows.slice(0, maxRows).forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        const cells = [
+          idx + 1,
+          row.name || '',
+          row.lat,
+          row.lon,
+          row.type || '',
+          row.desc || ''
+        ];
+        cells.forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = (val === undefined || val === null) ? '' : val;
+          tr.appendChild(td);
+        });
+        previewTable.appendChild(tr);
+      });
+
+      if (rows.length > maxRows) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.textContent = `… dan ${rows.length - maxRows} baris lainnya`;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--ta-muted)';
+        tr.appendChild(td);
+        previewTable.appendChild(tr);
+      }
+    }
+
+    function extractRowsFromKml(kmlText) {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(kmlText, 'text/xml');
+
+      const parseError = xml.getElementsByTagName('parsererror')[0];
+      if (parseError) {
+        throw new Error('File bukan XML/KML yang valid.');
+      }
+
+      const placemarks = xml.getElementsByTagName('Placemark');
+      const rows = [];
+
+      for (const pm of placemarks) {
+        const nameEl = pm.getElementsByTagName('name')[0];
+        const descEl = pm.getElementsByTagName('description')[0];
+
+        const name = nameEl && nameEl.textContent ? nameEl.textContent.trim() : '';
+        const desc = descEl && descEl.textContent ? descEl.textContent.trim() : '';
+
+        const point = pm.getElementsByTagName('Point')[0];
+        const line = pm.getElementsByTagName('LineString')[0];
+        const poly  = pm.getElementsByTagName('Polygon')[0];
+
+        let geom = null;
+        if (point) geom = point;
+        else if (line) geom = line;
+        else if (poly) geom = poly;
+
+        if (!geom) continue;
+
+        let coordEl = geom.getElementsByTagName('coordinates')[0];
+        if (!coordEl) continue;
+
+        const coords = parseCoordinatesString(coordEl.textContent);
+        const typeLabel = geometryTypeToLabel(geom);
+
+        coords.forEach(c => {
+          rows.push({
+            name,
+            desc,
+            lat: c.lat,
+            lon: c.lon,
+            type: typeLabel
+          });
+        });
+      }
+
+      return rows;
+    }
+
+    function downloadCsv(filename, content) {
+      const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    btnConvert.addEventListener('click', () => {
+      const file = kmlInput.files && kmlInput.files[0];
+      if (!file) {
+        setInfo('Silakan pilih file KML terlebih dahulu.', true);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const rows = extractRowsFromKml(text);
+          if (!rows.length) {
+            setInfo('KML terbaca, tetapi tidak ditemukan Placemark dengan Point/LineString/Polygon.', true);
+          } else {
+            setInfo(`Berhasil: ${rows.length} baris data diekstrak dari ${file.name}.`);
+          }
+
+          currentCsvContent = buildCsv(rows);
+          csvOutput.value = currentCsvContent;
+          updatePreview(rows);
+
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          currentCsvFilename = baseName + '_export.csv';
+          btnDownload.disabled = !rows.length;
+        } catch (err) {
+          console.error(err);
+          setInfo('Gagal memproses KML: ' + err.message, true);
+          csvOutput.value = '';
+          updatePreview([]);
+          currentCsvContent = '';
+          btnDownload.disabled = true;
+        }
+      };
+      reader.onerror = () => {
+        setInfo('Terjadi error saat membaca file KML.', true);
+      };
+      reader.readAsText(file);
+    });
+
+    btnDownload.addEventListener('click', () => {
+      if (!currentCsvContent) {
+        setInfo('Tidak ada data CSV untuk di-download.', true);
+        return;
+      }
+      downloadCsv(currentCsvFilename, currentCsvContent);
+    });
+  </script>
+</body>
+</html>
